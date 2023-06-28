@@ -147,7 +147,7 @@ def main(_):
         stats_res[r][5] = sum(stats_res[r][:5]) / 5
 
     for row in stats_res:
-        print(row)
+        print(row[0], row[1], row[2], row[3], row[4], row[5])
 
 
 
