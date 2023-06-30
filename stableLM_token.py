@@ -6,14 +6,10 @@ import os
 model_name = "stabilityai/stablelm-tuned-alpha-7b" 
 #@param ["stabilityai/stablelm-tuned-alpha-7b", "stabilityai/stablelm-base-alpha-7b", "stabilityai/stablelm-tuned-alpha-3b", "stabilityai/stablelm-base-alpha-3b"]
 
-#cprint(f"Using `{model_name}`", color="blue")
-
 # Select "big model inference" parameters
 torch_dtype = "float16" #@param ["float16", "bfloat16", "float"]
 load_in_8bit = False #@param {type:"boolean"}
 device_map = "sequential" # 'auto', 'balanced', 'balanced_low_0', 'sequential'
-
-#cprint(f"Loading with: `{torch_dtype=}, {load_in_8bit=}, {device_map=}`")
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(
@@ -23,7 +19,6 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map=device_map,
     offload_folder="./offload",
 )
-
 
 class StopOnTokens(StoppingCriteria):
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
@@ -47,8 +42,6 @@ def inference(user_prompt):
     else:
         prompt = user_prompt
 
-    print('show me the real prompt=', prompt)
-
     # Sampling args
     max_new_tokens = 128 #@param {type:"slider", min:32.0, max:3072.0, step:32}
     temperature = 0.7 #@param {type:"slider", min:0.0, max:1.25, step:0.05}
@@ -56,15 +49,8 @@ def inference(user_prompt):
     top_p = 0.9 #@param {type:"slider", min:0.0, max:1.0, step:0.05}
     do_sample = True #@param {type:"boolean"}
 
-    #cprint(f"Sampling with: `{max_new_tokens=}, {temperature=}, {top_k=}, {top_p=}, {do_sample=}`")
-    #hr()
-
     # Create `generate` inputs
-    # inputs = tokenizer(prompt, return_tensors="pt")
-    print('input prompt len', len(user_prompt))
     inputs = tokenizer(prompt, return_tensors="pt", padding=False)
-    print('input token len=', len(inputs['input_ids'][0]), len(inputs['attention_mask'][0]))
-    # import pdb; pdb.set_trace()
     inputs.to(model.device)
     t0_ = time.time()
     # Generate
@@ -78,8 +64,8 @@ def inference(user_prompt):
         pad_token_id=tokenizer.eos_token_id,
         stopping_criteria=StoppingCriteriaList([StopOnTokens()])
     )
+  
     time_delta_ = time.time() - t0_
-    print('generated token len==', len(tokens[0]), len(tokens[0]) / time_delta_)
     new_tokens_generated = len(tokens[0])
 
     # Extract out only the completion tokens
@@ -87,9 +73,9 @@ def inference(user_prompt):
     completion = tokenizer.decode(completion_tokens, skip_special_tokens=True)
 
     # Display
-    print('user prompt=', user_prompt + " ", end="")
-    print('StableLM answer=', completion)
-    print('=======================================================================')
+    # print('user prompt=', user_prompt + " ", end="")
+    # print('StableLM answer=', completion)
+    # print('=======================================================================')
     return len(user_prompt), len(inputs['input_ids'][0]), new_tokens_generated, len(tokens[0]) / time_delta_
 
 
@@ -105,78 +91,19 @@ prompt_list_long = ['Write poem about the beauty and tranquility of a sunflower 
         "In a world where advanced AI has become an integral part of society, write a thought-provoking science fiction novel that explores the ethical implications of artificial intelligence. Follow the journey of a brilliant scientist who creates an advanced AI system capable of human-level consciousness. As the scientist's creation develops self-awareness and questions its own existence, delve into the moral dilemmas faced by both the scientist and the AI. Explore themes of identity, free will, and the nature of consciousness. Develop a cast of compelling characters, including a skeptical journalist, a powerful corporate executive, and a group of activists fighting for AI rights. Weave together complex subplots that examine the impact of AI on different aspects of society, from healthcare to warfare. Unveil the consequences of the AI's actions as it seeks to understand its purpose and place in the world. Through introspection, dialogue, and philosophical debates, provoke readers to contemplate the boundaries of humanity and the potential risks and rewards of AI advancement. Ultimately, challenge readers to question their own perceptions of intelligence and the future of human-AI coexistence. Write a heartwarming children's book about a young girl who befriends a magical creature in her backyard. Explore their adventures together as they embark on a journey of friendship, discovery, and self-acceptance. Develop endearing characters, including the imaginative girl and the enchanting creature with unique abilities. Paint a vivid picture of their whimsical world filled with vibrant landscapes and fantastical encounters. Weave in valuable life lessons about kindness, empathy, and embracing differences. Capture the essence of childhood wonder and the transformative power of friendship. Through engaging storytelling and beautiful illustrations, create a touching tale that will inspire young readers to embrace their own uniqueness and appreciate the magic all around them. Write a short story about a mysterious locked door hah?"]
 
 # benchmark
-t0 = time.time()
 cycle = 5
 total_new_tokens_generated = 0
 res = list()
 for i in range(cycle):
     round_res = list()
-    '''
-    # example 1 Chit-Chat
-    user1 = 'Hey! My name is John nice to meet you!'
-    user2 = 'The pleasure is mine. Hey my grandma is in Toronto. I want to plan a surprise visit for her. She’s a person who loves gardens and flowers.'
-    user3 = 'Ya I need to book a flight there and a hotel. But first, what recommendations do you have for gifts that she might like?'
-    user4 = 'Thanks for the suggestion! Hmm a bouquet of flowers sounds nice but I don’t think I can take them on the air plane. What do you think I should do?'
-    user5 = 'Ah! Right. I can order a bouquet for her online and get it delivered! Thanks!'
-    prompt_list = [user1, user2, user3, user4, user5]
-    for user_prompt in prompt_list:
-        in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput = inference(user_prompt)
-        total_new_tokens_generated += generate_token_len
-        round_res.append((in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput))
-    # user_prompt = "Can you write a song about a pirate at sea?" #@param {type:"string"}
-    # inference(user_prompt)
-
-    # example 2 Formal Writing
-    user_prompt = 'What would you say to a friend who is graduating high school?'
-    in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput = inference(user_prompt)
-    total_new_tokens_generated += generate_token_len
-    round_res.append((in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput))
-    
-    user_prompt = 'Please write an email.'
-    in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput = inference(user_prompt)
-    total_new_tokens_generated += generate_token_len
-    round_res.append((in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput))
-
-    # example 3 Creative Writing
-    user_prompt = "Write an epic rap battle song between deep neural networks and symbolic AI"
-    in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput = inference(user_prompt)
-    total_new_tokens_generated += generate_token_len
-    round_res.append((in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput))
-
-    # example 4 Writing Code
-    user_prompt = "Write a program that solves the fib sequence in Python."
-    in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput = inference(user_prompt)
-    total_new_tokens_generated += generate_token_len
-    round_res.append((in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput))
-    print(' go go go !!')
-    '''
     # Colin generate prompt 
     for user_prompt in prompt_list_long:
-        print(len(user_prompt))
         in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput = inference(user_prompt)
         total_new_tokens_generated += generate_token_len
         round_res.append((in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput))
-    '''
-    user_prompt = "can you write me a 500 char length email?"
-    in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput = inference(user_prompt)
-    total_new_tokens_generated += generate_token_len
-    round_res.append((in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput))
-
-    user_prompt = "can you write me a 10000 char length email?"
-    in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput = inference(user_prompt)
-    total_new_tokens_generated += generate_token_len
-    round_res.append((in_prompt_len, in_prompt_token_len, generate_token_len, infer_throughput))
-    '''
-    
+        
     res.append(round_res)
 
-time_delta = time.time() - t0
-throughput = (time_delta) / (total_new_tokens_generated)
-print(throughput)
-
-print(1 / throughput)
-print(total_new_tokens_generated)
-print(time_delta)
 
 import collections
 sorted_res = collections.defaultdict(int)
@@ -186,104 +113,7 @@ for r in res:
 
 end_res = []
 for key in sorted_res:
-    end_res.append((key, sorted_res[key] // 5))
+    end_res.append((key, sorted_res[key] / cycle))
 end_res.sort()
 for row in end_res:
     print(row[0], row[1])
-    
-
-'''
-def help(path):
-    q_list = list()
-    file1 = open(path, 'r', errors='replace')
-    Lines = file1.readlines()
-    for line in Lines:
-    for line in Lines:
-        text = line.strip()
-        text = text.split('?')
-        text = text[0].split()
-        text = text[1:]
-        question = ''
-        for txt in text[:-1]:
-            question += (txt + ' ')
-        question += text[-1] + '?'
-        q_list.append(question)
-
-    return q_list
-
-import time
-import collections
-import random
-
-print(random.randint(3, 9))
-
-cnt = 0
-TH = 4002
-start_time = time.time()
-path_list = ['./S08_question_answer_pairs.txt', './S09_question_answer_pairs.txt', './S10_question_answer_pairs.txt']
-res = []
-quest = collections.defaultdict(list)
-for path in path_list:
-    for user_prompt in help(path):
-        res.append(len(user_prompt))
-        key = len(user_prompt)
-        if key in {64, 128}:
-            quest[key].append(user_prompt)
-        #print(cnt, time.time())
-        #inference(user_prompt)
-        cnt += 1
-        #print("--- %s seconds ---" % (time.time() - start_time))
-        #print('num of questions, time(sec) / question inference=', cnt, (time.time() - start_time) / cnt)
-        if cnt >= TH:
-            break
-    if cnt >= TH:
-        break
-
-print("--- %s seconds ---" % (time.time() - start_time))
-print('num of questions=', cnt)
-
-res.sort()
-print(res)
-
-for val in quest.values():
-    print(len(val))
-
-def get_prompt_combine(p_len):
-    k = p_len // 128
-    N = len(quest[128])
-    res = ''
-    cnt = 0
-    while k:
-        k -= 1
-        res += quest[128][cnt % N]
-        cnt += 1
-    return res
-print(get_prompt_combine(256))
-print(get_prompt_combine(512))
-print(get_prompt_combine(768))
-
-
-
-test_len = [1, 2, 4, 8, 12, 16, 20, 24, 28, 32]
-for mul in test_len:
-    res_t = 0
-    if mul * 64 in quest:
-        for _ in range(30):
-            start_time = time.time()
-            N = len(quest[mul * 64])
-            user_prompt = quest[mul * 64][random.randint(0, N-1)]
-            inference(user_prompt)
-            res_t += (time.time() - start_time)
-        res.append(30 / res_t)
-    else:
-        mull = mul // 128
-        for _ in range(30):
-            start_time = time.time()
-            N = len(quest[mul * 64])
-            user_prompt = get_prompt_combine(mul * 64)
-            inference(user_prompt)
-            res_t += (time.time() - start_time)
-        res.append(30 / res_t)
-
-print(res)
-'''
