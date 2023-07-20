@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import csv
 
 path_non = 'stableML_non_flash_attn.stats.csv'
@@ -22,41 +23,58 @@ def get_key_dict(path):
                 profile[key] = (int(calls), int(TotalDurationNs))
     return profile
 
+
 FA = get_key_dict(path_fa)
 non_FA = get_key_dict(path_non)
 
 
 FA_only = list()
 FA_same = list()
-for key in FA:
+time_FA_only = 0
+for key, value in FA.items():
     if key not in non_FA:
-        FA_only.append((FA[key][0], key, FA[key][1]))
+        FA_only.append((value[0], key, value[1]))
+        time_FA_only += value[1]
     else:
-        if FA[key][0] != non_FA[key][0]:
-            FA_same.append((FA[key][0], key))
+        if value[0] != non_FA[key][0]:
+            FA_same.append((value[0], key))
+            if value[1] > non_FA[key][1]:
+                time_FA_only += value[1] > non_FA[key][1]
+
+print('time_FA_only =', time_FA_only)
 
 print(len(FA_only), len(FA_same))
 FA_only.sort(reverse=True)
 FA_same.sort(reverse=True)
 
+'''
 for info in FA_only:
     print(info)
 print()
 for info in FA_same:
     print(info)
+'''
 
 print('========================================================')
 
 non_FA_only = list()
 non_FA_same = list()
-for key in non_FA:
+time_non_FA_only = 0
+for key, value in non_FA.items():
     if key not in FA:
-        non_FA_only.append((non_FA[key][0], key))
+        non_FA_only.append((value[0], key))
+        time_non_FA_only += value[1]
     else:
         if non_FA[key][0] != FA[key][0]:
             non_FA_same.append((non_FA[key][0], key, FA[key][1]))
+            if value[1] > FA[key][1]:
+                time_non_FA_only += value[1] - FA[key][1]
+
+print('time_non_FA_only =', time_non_FA_only)
+
 
 print(len(non_FA_only), len(non_FA_same))
+'''
 non_FA_only.sort(reverse=True)
 non_FA_same.sort(reverse=True)
 for info in non_FA_only:
@@ -65,7 +83,7 @@ for info in non_FA_only:
 print()
 for info in non_FA_same:
     print(info)
-            
+'''            
 
 
 '''
