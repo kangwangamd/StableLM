@@ -10,6 +10,7 @@ file_fa = open(path_fa, 'r')
 def get_key_dict(path):
     cnt = 0
     profile = dict()
+    total_time = 0
     with open(path, newline='') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',')
         for row in spamreader:
@@ -18,30 +19,45 @@ def get_key_dict(path):
                 header = row
             else:
                 key, calls, TotalDurationNs, AverageNs, Percentage = row
+                total_time += int(TotalDurationNs)
                 if key in profile:
                     print('sth is worng')
                 profile[key] = (int(calls), int(TotalDurationNs))
-    return profile
+    return profile, total_time
 
 
-FA = get_key_dict(path_fa)
-non_FA = get_key_dict(path_non)
+FA, FA_total_t = get_key_dict(path_fa)
+non_FA, non_FA_total_t = get_key_dict(path_non)
 
+
+# step 1 check total time diff?
+print('check total time diff, FA, non-FA', FA_total_t, non_FA_total_t)
+if FA_total_t > non_FA_total_t:
+    print('Using Flash-attention is slower')
+    diff_t = FA_total_t - non_FA_total_t
+    print('time diff ==', diff_t)
+    print('ratio', diff_t / non_FA_total_t)
+
+# step 2 where is the diff coming from?
 
 FA_only = list()
 FA_same = list()
 time_FA_only = 0
+time_more = 0
 for key, value in FA.items():
+    calls, TotalDurationNs = value
     if key not in non_FA:
-        FA_only.append((value[0], key, value[1]))
-        time_FA_only += value[1]
+        FA_only.append((calls, key, TotalDurationNs))
+        time_FA_only += TotalDurationNs
     else:
-        if value[0] != non_FA[key][0]:
-            FA_same.append((value[0], key))
-            if value[1] > non_FA[key][1]:
-                time_FA_only += value[1] > non_FA[key][1]
+        if TotalDurationNs != non_FA[key][1]:
+            FA_same.append((calls, key))
+            if TotalDurationNs > non_FA[key][1]:
+                time_more += (TotalDurationNs - non_FA[key][1])
+            else:
+                time_more -= (non_FA[key][1] - TotalDurationNs)
 
-print('time_FA_only =', time_FA_only)
+print('time_FA_more =', time_FA_only, time_more, time_FA_only + time_more)
 
 print(len(FA_only), len(FA_same))
 FA_only.sort(reverse=True)
