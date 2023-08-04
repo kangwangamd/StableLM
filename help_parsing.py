@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import csv
 
-path_non = 'stableML_non_flash_attn.stats.csv'
-path_fa = 'stableML_flash_attn.stats.csv'
-file_non = open(path_non, 'r')
+#path_non = 'stableML_non_flash_attn.stats.csv'
+path_fa = 'naive_FA_2028.stats.csv'
+#file_non = open(path_non, 'r')
 file_fa = open(path_fa, 'r')
 
 
@@ -11,6 +11,7 @@ def get_key_dict(path):
     cnt = 0
     profile = dict()
     total_time = 0
+    ck_info = list()
     with open(path, newline='') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',')
         for row in spamreader:
@@ -23,10 +24,22 @@ def get_key_dict(path):
                 if key in profile:
                     print('sth is worng')
                 profile[key] = (int(calls), int(TotalDurationNs))
-    return profile, total_time
+                if 'kernel_grouped_gemm_softmax_gemm_xdl_cshuffle' in key:
+                    ck_info = [key, calls, TotalDurationNs, AverageNs, Percentage]
+    return profile, total_time, ck_info
 
 
-FA, FA_total_t = get_key_dict(path_fa)
+# FA, FA_total_t, ck_info = get_key_dict(path_fa)
+use_flash_att = True
+
+FA, FA_total_t, ck_info = get_key_dict(path_fa)
+print()
+if use_flash_att:
+    print('FA_total_t =', FA_total_t, ck_info[1], ck_info[2], ck_info[3], ck_info[4])
+else:
+    print('FA_total_t =', FA_total_t)
+print()
+'''
 non_FA, non_FA_total_t = get_key_dict(path_non)
 
 
@@ -62,6 +75,7 @@ print('time_FA_more =', time_FA_only, time_more, time_FA_only + time_more)
 print(len(FA_only), len(FA_same))
 FA_only.sort(reverse=True)
 FA_same.sort(reverse=True)
+'''
 
 '''
 for info in FA_only:
@@ -70,7 +84,7 @@ print()
 for info in FA_same:
     print(info)
 '''
-
+'''
 print('========================================================')
 
 non_FA_only = list()
@@ -87,9 +101,9 @@ for key, value in non_FA.items():
                 time_non_FA_only += value[1] - FA[key][1]
 
 print('time_non_FA_only =', time_non_FA_only)
+'''
 
-
-print(len(non_FA_only), len(non_FA_same))
+#print(len(non_FA_only), len(non_FA_same))
 '''
 non_FA_only.sort(reverse=True)
 non_FA_same.sort(reverse=True)
