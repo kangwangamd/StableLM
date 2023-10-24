@@ -22,8 +22,9 @@ for line in Lines:
     elif 'barrier' in line.strip():
       barrier += help_get_perc(line)
 
-print(elementwise)
-print(RCCL)
-print(GEMM)
-print(FA)
-print(1- elementwise - RCCL - GEMM - FA - barrier)
+print('elementwise', elementwise)
+print('RCCL', RCCL)
+print('GEMM', GEMM)
+print('FA', FA)
+print('barrier', barrier)
+print('else', 1- elementwise - RCCL - GEMM - FA - barrier)
